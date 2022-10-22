@@ -14,8 +14,7 @@ function Reports() {
   async function saveContents() {
     const keys = await AsyncStorage.getAllKeys();
     const contents = await getStorageContent(keys);
-    if (!contents) return;
-    setReports(contents);
+    contents ? setReports(contents) : setReports([]);
   }
   useEffect(() => {
     saveContents();
@@ -33,15 +32,21 @@ function Reports() {
               </View>
               <Button
                 title="Delete Report"
-                onPress={() => {
-                  deleteSingleReport(report);
-                  setReports([]);
+                onPress={async () => {
+                  await deleteSingleReport(report);
+                  saveContents();
                 }}
               />
             </View>
           ))}
       </>
-      <Button title="Delete All" onPress={() => deleteAllReports()} />
+      <Button
+        title="Delete All"
+        onPress={async () => {
+          await deleteAllReports();
+          saveContents();
+        }}
+      />
       <Button title="View Storage" onPress={() => viewStorage()} />
     </View>
   );

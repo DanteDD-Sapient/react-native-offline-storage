@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import ViewBoxesWithColorAndText from "./ScreenShot";
-import { StyleSheet, View, TextInput, Button } from "react-native";
+import { StyleSheet, View, TextInput, Button, Text } from "react-native";
 import { saveScreenshot, setObjectValue } from "../fileSystem";
 
 export default function CreateReports() {
@@ -17,7 +17,8 @@ export default function CreateReports() {
     setObjectValue(input, { name: input, filepath });
   }
   return (
-    <View>
+    <View style={styles.container}>
+      <Text style={styles.heading}>Create New Report</Text>
       <ViewBoxesWithColorAndText text={input} setRef={setView} />
       <TextInput
         placeholder="Name"
@@ -33,12 +34,13 @@ export default function CreateReports() {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: "#fff",
-    alignItems: "center",
-    justifyContent: "center",
-    display: "flex",
-    flexDirection: "row",
+    paddingHorizontal: 20,
+  },
+  heading: {
+    fontWeight: "bold",
+    fontSize: 24,
+    textAlign: "center",
+    marginVertical: 10,
   },
   input: {
     height: 40,
