@@ -1,19 +1,11 @@
 import * as FileSystem from "expo-file-system";
 import { captureRef } from "react-native-view-shot";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Report } from "./types";
 
-export async function createDir(location: string) {
-  const dirLocation = `${FileSystem.documentDirectory}${location}`;
-  try {
-    const dirInfo = await FileSystem.getInfoAsync(dirLocation);
-    if (dirInfo.exists) throw new Error("dir already exists");
-    await FileSystem.makeDirectoryAsync(dirLocation);
-  } catch (err) {
-    console.log(err);
-  }
-}
-
-export async function takeScreenshot(view: React.MutableRefObject<any>) {
+// https://docs.expo.dev/versions/latest/sdk/captureRef/
+// here to demo file creation + manipulation
+async function takeScreenshot(view: React.MutableRefObject<any>) {
   try {
     const imageURI = await captureRef(view, {
       result: "tmpfile",
@@ -29,6 +21,8 @@ export async function takeScreenshot(view: React.MutableRefObject<any>) {
   return null;
 }
 
+// copies file to directory
+// creates directories if they do not yet exist
 export async function saveFileToDir(
   location: string,
   fileName: string,
@@ -40,6 +34,7 @@ export async function saveFileToDir(
     if (!dirInfo.exists) {
       await FileSystem.makeDirectoryAsync(dirLocation, { intermediates: true });
     }
+    // should use moveAsync but ran into permision issues
     await FileSystem.copyAsync({
       from: `file://${fileURI}`,
       to: `${dirLocation}/${fileName}`,
@@ -51,6 +46,7 @@ export async function saveFileToDir(
   }
 }
 
+// function to generate and save screenshot
 export async function saveScreenshot(
   location: string,
   fileName: string,
@@ -61,55 +57,101 @@ export async function saveScreenshot(
   return await saveFileToDir(location, fileName, imgURI);
 }
 
-export async function getDirContents(
-  location: string,
-  setState: React.Dispatch<React.SetStateAction<string>>
-) {
-  const dirLocation = `${FileSystem.documentDirectory}${location}`;
-  try {
-    const dirInfo = await FileSystem.getInfoAsync(dirLocation);
-    if (!dirInfo.exists) throw new Error("dir does not exist");
-    console.log("dirInfo", dirInfo);
-    setState(`${dirInfo.uri}/image`);
-    const contents = await FileSystem.readDirectoryAsync(dirLocation);
-    console.log("contents", contents);
-  } catch (err) {
-    console.log(err);
-  }
-}
-
-export async function deleteDirContents(location: string) {
-  const dirLocation = `${FileSystem.documentDirectory}${location}`;
-  try {
-    const dirInfo = await FileSystem.getInfoAsync(dirLocation);
-    if (!dirInfo.exists) throw new Error("dir does not exist");
-    await FileSystem.deleteAsync(dirLocation);
-  } catch (err) {
-    console.log(err);
-  }
-}
-
-export async function setObjectValue(key: string, value: any) {
+// save report to asyncStorage
+export async function setObjectValue(key: string, value: Report) {
   try {
     const jsonValue = JSON.stringify(value);
     await AsyncStorage.setItem(key, jsonValue);
   } catch (err) {
     console.log(err);
   }
-  console.log("Done.");
 }
 
-export async function getStorageContents(setState: React.Dispatch<any>) {
+// get all values from asyncStorage, return values array
+export async function getStorageContent(keys: Readonly<string[]>) {
+  try {
+    const keyValuePairs = await AsyncStorage.multiGet(keys);
+    const contents = <Report[]>[];
+    for await (const item of keyValuePairs) {
+      if (!item[1]) return;
+      let result = await JSON.parse(item[1]);
+      contents.push(result);
+    }
+    return contents;
+  } catch (err) {
+    console.log(err);
+  }
+}
+
+// delete file/directory at given filepath
+async function deleteFile(location: string) {
+  try {
+    const dirInfo = await FileSystem.getInfoAsync(location);
+    if (!dirInfo.exists) throw new Error("dir does not exist");
+    await FileSystem.deleteAsync(location);
+  } catch (err) {
+    console.log(err);
+  }
+}
+
+// delete all files at location
+async function deleteFiles(locations: string[]) {
+  try {
+    for await (const location of locations) {
+      const dirInfo = await FileSystem.getInfoAsync(location);
+      if (!dirInfo.exists) continue;
+      await FileSystem.deleteAsync(location);
+    }
+  } catch (err) {
+    console.log(err);
+  }
+}
+
+// remove single entry from asyncStorage & file storage
+export async function deleteSingleReport(report: any) {
+  await deleteFile(report.filepath);
+  await AsyncStorage.removeItem(report.name);
+}
+
+// remove all items from asyncStorage & file storage
+export async function deleteAllReports() {
   try {
     const keys = await AsyncStorage.getAllKeys();
-    console.log(keys, keys[keys.length - 1]);
-    const test = await AsyncStorage.getItem(keys[keys.length - 1]);
-    const json = await AsyncStorage.multiGet(keys);
-    console.log(json);
-    if (!test) return;
-    const contents = await JSON.parse(test);
-    setState(contents);
-  } catch (e) {
-    // read key error
+    const result = await getStorageContent(keys);
+    if (!result) return;
+    const locations = <string[]>[];
+    result.forEach((content: Report) => locations.push(content.filepath));
+    await deleteFiles(locations);
+    await AsyncStorage.multiRemove(keys);
+  } catch (err) {
+    console.log(err);
+  }
+}
+
+// functions for demo purpose only
+
+// displays info of item at location & contents if dir
+export async function displayDirInfo(location: string) {
+  const dirLocation = `${FileSystem.documentDirectory}${location}`;
+  try {
+    const dirInfo = await FileSystem.getInfoAsync(dirLocation);
+    if (!dirInfo.exists) throw new Error("dir does not exist");
+    console.log("dirInfo", dirInfo);
+    const contents = await FileSystem.readDirectoryAsync(dirLocation);
+    console.log("directory contents", contents);
+  } catch (err) {
+    console.log(err);
+  }
+}
+
+// view contents of asyncStorage and app/images directory
+export async function viewStorage() {
+  try {
+    const keys = await AsyncStorage.getAllKeys();
+    const contents = await AsyncStorage.multiGet(keys);
+    console.log("AsyncStorage contents", contents);
+    await displayDirInfo("app/images");
+  } catch (err) {
+    console.log(err);
   }
 }

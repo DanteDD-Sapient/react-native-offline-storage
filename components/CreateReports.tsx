@@ -1,25 +1,20 @@
-import React, { useState, useEffect } from "react";
-import { StatusBar } from "expo-status-bar";
+import React, { useState } from "react";
 import ViewBoxesWithColorAndText from "./ScreenShot";
-import { StyleSheet, Text, View, TextInput, Button } from "react-native";
-import { takeScreenshot } from "../fileSystem";
-import {
-  saveScreenshot,
-  setObjectValue,
-  getStorageContents,
-} from "../fileSystem";
+import { StyleSheet, View, TextInput, Button } from "react-native";
+import { saveScreenshot, setObjectValue } from "../fileSystem";
 
 export default function CreateReports() {
   const [input, setInput] = useState("");
-  const [view, setView] = useState<any>();
+  const [view, setView] = useState<React.MutableRefObject<null>>();
 
   async function handleSubmit(
     input: string,
-    view: React.MutableRefObject<any>
+    view: React.MutableRefObject<null> | undefined
   ) {
-    const filePath = await saveScreenshot("app/images", input, view);
-    console.log(filePath);
-    setObjectValue(input, { name: input, filePath: filePath });
+    if (!view) return;
+    const filepath = await saveScreenshot("app/images", input, view);
+    if (!filepath) return;
+    setObjectValue(input, { name: input, filepath });
   }
   return (
     <View>
